@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
+  Netmask OS — Windows-style bottom taskbar (hacker palette)
+
+  Layout:  [ Start ]  [ running app buttons ...................... ]  [ tray ] [ clock ]
+           whisker    tasklist (icons, groups windows)  <expand>  systray  digital
+-->
+
+<channel name="xfce4-panel" version="1.0">
+  <property name="configver" type="int" value="2"/>
+
+  <property name="panels" type="array">
+    <property name="panel-1" type="empty">
+      <property name="position" type="string" value="p=6;x=0;y=0"/>
+      <property name="length" type="uint" value="100"/>
+      <property name="position-locked" type="bool" value="true"/>
+      <property name="mode" type="uint" value="0"/>
+      <property name="nrows" type="uint" value="1"/>
+      <property name="size" type="uint" value="40"/>
+      <property name="icon-size" type="uint" value="22"/>
+      <property name="autohide" type="bool" value="false"/>
+      <property name="background-style" type="uint" value="1"/>
+      <property name="background-color" type="rgba" value="rgba(13,13,26,0.98)"/>
+      <property name="panel-visibility" type="uint" value="1"/>
+    </property>
+  </property>
+
+  <!-- Start button (Windows logo position, bottom-left) -->
+  <property name="plugin-1" type="string" value="whiskermenu"/>
+
+  <!-- running applications (icons only, grouped, scroll to cycle) -->
+  <property name="plugin-2" type="string" value="tasklist">
+    <property name="show-labels" type="bool" value="false"/>
+    <property name="grouping" type="uint" value="1"/>
+    <property name="show-flat-buttons" type="bool" value="false"/>
+    <property name="show-tooltips" type="bool" value="true"/>
+    <property name="show-all-workspaces" type="bool" value="true"/>
+    <property name="window-scrolling" type="bool" value="true"/>
+    <property name="switch-workspace-on-unminimize" type="bool" value="true"/>
+    <property name="middle-click" type="uint" value="1"/>
+  </property>
+
+  <!-- invisible spacer pushing tray + clock to the right edge -->
+  <property name="plugin-3" type="string" value="separator">
+    <property name="expand" type="bool" value="true"/>
+    <property name="style" type="uint" value="0"/>
+  </property>
+
+  <!-- system tray (nm-applet, ...) -->
+  <property name="plugin-4" type="string" value="systray">
+    <property name="square-icons" type="bool" value="true"/>
+    <property name="menu-is-primary" type="bool" value="true"/>
+  </property>
+
+  <!-- clock, Windows style: time over date -->
+  <property name="plugin-5" type="string" value="clock">
+    <property name="mode" type="uint" value="0"/>
+    <property name="digital-format" type="string" value="%H:%M%n%d/%m"/>
+    <property name="tooltip-format" type="string" value="%A %d %B %Y"/>
+    <property name="font" type="string" value="Inter 9"/>
+  </property>
+</channel>

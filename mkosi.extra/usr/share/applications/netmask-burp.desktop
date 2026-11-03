@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Burp Suite Community
+Comment=Web security testing proxy — Netmask OS
+Exec=burp
+Icon=applications-internet
+Terminal=false
+Categories=Development;Security;Network;
+Keywords=proxy;web;interception;netmask;

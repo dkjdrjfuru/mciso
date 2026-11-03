@@ -1,0 +1,5 @@
+# ~/.config/user-dirs.dirs — Netmask OS
+# ~/Desktop holds the desktop launchers xfdesktop shows as icons.
+XDG_DESKTOP_DIR="$HOME/Desktop"
+XDG_DOWNLOAD_DIR="$HOME/Downloads"
+XDG_DOCUMENTS_DIR="$HOME/Documents"

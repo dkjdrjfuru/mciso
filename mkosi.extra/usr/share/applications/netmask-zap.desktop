@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=OWASP ZAP
+Comment=Web app security scanner / proxy — Netmask OS
+Exec=zap
+Icon=applications-internet
+Terminal=false
+Categories=Development;Security;Network;
+Keywords=proxy;web;scanner;owasp;netmask;

@@ -1,0 +1,129 @@
+#!/bin/bash
+# mkosi.postinst.chroot — runs INSIDE the image (as root) after packages
+# are installed. Network is available.
+#
+# build.sh has vendored the installer modules + versions.env into
+# /opt/netmask-installer (via mkosi.extra) — this script runs them module
+# by module. One failing module never aborts the build; the final
+# verify-tools table makes every gap visible in the build log.
+set -uo pipefail
+export DEBIAN_FRONTEND=noninteractive
+export HOME=/root
+
+ROOT="/opt/netmask-installer"
+[ -d "$ROOT" ] || ROOT="$(cd "$(dirname "$0")" && pwd)"   # fallback: bare `mkosi build`
+
+# shellcheck source=versions.env
+source "$ROOT/versions.env" 2>/dev/null || true
+
+echo "=============================================================="
+echo ">>> [postinst] Netmask OS — assembling the RE toolchain"
+echo "=============================================================="
+
+# small apt bits the modules rely on (not worth a rebuild round)
+apt-get update -qq || true
+apt-get install -y -qq --no-install-recommends \
+    lua5.4 perl zip pv bc xdg-utils desktop-file-utils libfuse2 \
+    >/dev/null 2>&1 || true
+
+# ---- Rust (rustup, /opt) ---------------------------------------------------
+if ! command -v rustc >/dev/null 2>&1; then
+    echo ">>> [postinst] installing Rust"
+    curl -fsSL https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init \
+        -o /tmp/rustup-init && chmod +x /tmp/rustup-init \
+        && RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo \
+           /tmp/rustup-init -y --profile minimal --no-modify-path \
+                --default-toolchain "${RUST_PROFILE:-stable}" >/dev/null 2>&1 \
+        && ln -sf /opt/cargo/bin/rustc /usr/local/bin/rustc \
+        && ln -sf /opt/cargo/bin/cargo /usr/local/bin/cargo \
+        && echo "export RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo" > /etc/profile.d/rust.sh \
+        || echo ">>> [postinst] rust FAILED (continuing)"
+fi
+
+# ---- Node.js 20 LTS (tarball) ----------------------------------------------
+if ! command -v node >/dev/null 2>&1; then
+    echo ">>> [postinst] installing Node.js ${NODE_VERSION}"
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+        -o /tmp/node.tar.xz \
+        && mkdir -p /opt/nodejs \
+        && tar -xJf /tmp/node.tar.xz -C /opt/nodejs --strip-components=1 \
+        && ln -sf /opt/nodejs/bin/node /usr/local/bin/node \
+        && ln -sf /opt/nodejs/bin/npm  /usr/local/bin/npm \
+        && ln -sf /opt/nodejs/bin/npx  /usr/local/bin/npx \
+        || echo ">>> [postinst] node FAILED (continuing)"
+fi
+
+# ---- Ghidra (pinned; pre-seed /opt/netmask-installer/ghidra.zip for offline)
+echo ">>> [postinst] installing Ghidra ${GHIDRA_VERSION}"
+mkdir -p /opt/ghidra
+if [ -s "$ROOT/ghidra.zip" ]; then
+    cp -f "$ROOT/ghidra.zip" /tmp/ghidra.zip
+else
+    curl -fsSL --retry 3 -o /tmp/ghidra.zip "${GHIDRA_URL}" || true
+fi
+if [ -s /tmp/ghidra.zip ]; then
+    if unzip -q -o /tmp/ghidra.zip -d /tmp/ghidra-x; then
+        rm -rf /opt/ghidra/build
+        mv /tmp/ghidra-x/ghidra_* /opt/ghidra/build && rmdir /tmp/ghidra-x
+        printf '#!/bin/sh\nexec /opt/ghidra/build/ghidraRun "$@"\n' > /usr/local/bin/ghidra
+        chmod 755 /usr/local/bin/ghidra
+        ln -sf /opt/ghidra/build/support/analyzeHeadless /usr/local/bin/ghidra-headless 2>/dev/null || true
+    else
+        echo ">>> [postinst] ghidra unzip FAILED (continuing)"
+    fi
+else
+    echo ">>> [postinst] ghidra download FAILED (continuing)"
+fi
+
+# ---- Python 3.12 side-build (bookworm ships 3.11) ---------------------------
+if [ "${NETMASK_SKIP_PY312:-0}" != "1" ]; then
+    bash "$ROOT/scripts/optional/install-python312.sh" \
+        || echo ">>> [postinst] python3.12 FAILED (continuing)"
+fi
+
+# ---- toolchain modules ------------------------------------------------------
+MODULES=(
+    scripts/install-pytools.sh       # venv first: later modules reuse it
+    scripts/install-re-core.sh
+    scripts/install-go.sh
+    scripts/install-exploit.sh
+    scripts/install-metasploit.sh
+    scripts/install-malware.sh
+    scripts/install-web.sh
+    scripts/install-cloud.sh
+    scripts/install-dynamic.sh
+    scripts/install-extra.sh         # jadx, dex2jar, stegseek, CyberChef, ImHex, wine, gems...
+    scripts/install-vbox-guest.sh    # VirtualBox guest additions (auto-resize/clipboard)
+    scripts/install-vscode.sh
+)
+for mod in "${MODULES[@]}"; do
+    echo
+    echo ">>> [postinst] ===== ${mod} ====="
+    bash "$ROOT/$mod" 2>&1 | tee "/tmp/nm-$(basename "$mod").log" || true
+done
+
+# ---- crackmes: compile the challenge pack (ELF + Windows PE) ----------------
+echo
+echo ">>> [postinst] ===== compiling crackmes ====="
+bash "$ROOT/scripts/build-crackmes.sh" 2>&1 | tail -20 || true
+
+# ---- SecLists ---------------------------------------------------------------
+echo ">>> [postinst] cloning SecLists"
+git clone --depth 1 https://github.com/danielmiessler/SecLists.git /usr/share/seclists \
+    >/dev/null 2>&1 || echo ">>> [postinst] seclists FAILED (continuing)"
+chmod -R a+rX /usr/share/seclists 2>/dev/null || true
+
+# keep the verifier in the image for `netmask-tools doctor`
+mkdir -p /usr/local/lib/netmask /usr/share/doc/netmask
+install -m755 "$ROOT/scripts/verify-tools.sh" /usr/local/lib/netmask/verify-tools.sh
+for doc in README.md INSTALL.md SECURITY.md CHANGELOG.md KNOWN-LIMITATIONS.md; do
+    cp -f "$ROOT/$doc" /usr/share/doc/netmask/ 2>/dev/null || true
+done
+
+echo "=============================================================="
+echo ">>> [postinst] verification table"
+echo "=============================================================="
+bash /usr/local/lib/netmask/verify-tools.sh || true
+
+echo ">>> [postinst] done"
+exit 0

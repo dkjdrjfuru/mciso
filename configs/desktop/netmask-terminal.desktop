@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Terminal
+GenericName=Kitty terminal
+Comment=Netmask OS shell (FiraCode Nerd Font)
+Exec=kitty
+Icon=utilities-terminal
+Terminal=false
+Categories=System;TerminalEmulator;

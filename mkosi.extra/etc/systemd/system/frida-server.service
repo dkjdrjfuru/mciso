@@ -1,0 +1,14 @@
+# Netmask OS — frida-server (local gadget, loopback only)
+# Inject into processes with:  frida -l script.js -f /path/to/bin
+[Unit]
+Description=Netmask OS — Frida server (127.0.0.1:27042)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/netmask-py/bin/frida-server -l 127.0.0.1:27042
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

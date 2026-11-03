@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Ghidra
+Comment=Reverse engineering suite (NSA) — Netmask OS
+Exec=ghidra
+Icon=utilities-system-monitor
+Terminal=false
+Categories=Development;Security;
+Keywords=reverse;engineering;decompiler;disassembler;netmask;

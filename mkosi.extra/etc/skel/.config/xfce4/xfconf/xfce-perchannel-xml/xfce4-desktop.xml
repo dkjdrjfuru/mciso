@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml
+  Netmask OS — desktop wallpaper + icons (xfdesktop)
+
+  Wallpaper: netmask logo (zoom fill, like the old feh bg-fill)
+  Icons:     Home / trash / ~/Desktop launchers shown on the left,
+             which gives the "This PC / Recycle Bin" Windows feel.
+-->
+
+<channel name="xfce4-desktop" version="1.0">
+  <property name="backdrop" type="empty">
+    <property name="screen0" type="empty">
+      <property name="monitor0" type="empty">
+        <!-- xfdesktop >= 4.14 (per-workspace backdrop) -->
+        <property name="workspace0" type="empty">
+          <property name="image-path" type="string" value="/usr/share/backgrounds/netmask/netmask_logo.png"/>
+          <property name="image-style" type="uint" value="5"/>
+          <property name="image-show" type="bool" value="true"/>
+        </property>
+        <!-- legacy keys kept as fallback -->
+        <property name="image-path" type="string" value="/usr/share/backgrounds/netmask/netmask_logo.png"/>
+        <property name="image-style" type="uint" value="5"/>
+        <property name="image-show" type="bool" value="true"/>
+        <property name="color-style" type="uint" value="0"/>
+      </property>
+    </property>
+  </property>
+
+  <property name="desktop-icons" type="empty">
+    <property name="icon-size" type="uint" value="48"/>
+    <property name="show-thumbnails" type="bool" value="true"/>
+    <property name="show-hidden-files" type="bool" value="false"/>
+    <property name="tooltips" type="bool" value="true"/>
+    <property name="gravity" type="uint" value="1"/>
+  </property>
+</channel>

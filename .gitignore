@@ -1,0 +1,17 @@
+# mkosi build artifacts
+output/
+mkosi.cache/
+mkosi.work/
+*.iso
+*.raw
+.sha256
+*.sig
+.isobuild/
+
+# vendored at build time by build.sh (generated from scripts/ + versions.env)
+mkosi.extra/opt/
+mkosi.extra/usr/share/doc/netmask/
+mkosi.extra/usr/local/lib/netmask/
+
+# offline pre-seeds
+ghidra.zip

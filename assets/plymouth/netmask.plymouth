@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Netmask OS
+Description=Matrix-rain boot splash with netmask emblem, progress bar and dialog support
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/netmask
+ScriptFile=/usr/share/plymouth/themes/netmask/netmask.script

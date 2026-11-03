@@ -1,0 +1,77 @@
+name: Build Netmask OS (hacker edition)
+
+on:
+  push:
+    branches: [ "**" ]
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # NOTE: the full toolchain ISO is large (~6-8 GB). A stock runner fits,
+    # but for frequent builds prefer a self-hosted runner with ~60 GB disk.
+    runs-on: ubuntu-24.04
+    env:
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free disk space (~25 GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                      /usr/share/swift /opt/hostedtoolcache/CodeQL
+          sudo apt-get clean
+          sudo docker image prune -af || true
+          df -h /
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pipx \
+            squashfs-tools \
+            xorriso \
+            grub-pc-bin \
+            grub-efi-amd64-bin \
+            grub-common \
+            mtools \
+            debian-archive-keyring \
+            dosfstools \
+            cpio zstd xz-utils \
+            qemu-system-x86 ovmf
+          pipx install mkosi
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Build Netmask OS hacker ISO
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          ./build.sh
+
+      - name: QEMU smoke test (BIOS)
+        run: ./scripts/qemu-smoke.sh output/netmask-os-hacker-*.iso
+
+      - name: QEMU smoke test (UEFI)
+        run: ./scripts/qemu-smoke.sh --uefi output/netmask-os-hacker-*.iso
+
+      - name: GPG signature
+        if: env.GPG_PRIVATE_KEY != ''
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          KEYID="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/{print $5; exit}')"
+          GPG_KEY_ID="$KEYID" SIGN=1 python3 scripts/post_build.py output/netmask-os-hacker-*.iso
+
+      - name: Upload ISO artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: netmask-os-hacker-iso
+          path: |
+            output/*.iso
+            output/*.sha256
+            output/*.sig
+            output/*.BUILD-INFO.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

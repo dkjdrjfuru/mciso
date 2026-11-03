@@ -1,0 +1,49 @@
+#!/bin/bash
+# netmask-tools — Netmask OS toolchain navigator + doctor
+#   netmask-tools            show categorized tool cheat-sheet
+#   netmask-tools doctor     re-run the build-time verification table
+set -euo pipefail
+
+CATS=(
+"RE CORE|objdump readelf r2 rizin cutter gdb pwndbg lldb checksec pwn ROPgadget ropper patchelf upx diec binwalk imhex ghidra"
+"DYNAMIC|frida drrun qemu-x86_64 strace ltrace rr pin"
+"EXPLOIT|msfconsole msfvenom searchsploit afl-fuzz honggfuzz one_gadget libc-database donut angr"
+"WEB|burp zap sqlmap ffuf nuclei httpx naabu dnsx katana dalfox feroxbuster wfuzz wafw00f arjun dirsearch xsstrike mitmproxy"
+"MOBILE|apktool jadx jadx-gui d2j-dex2jar objection apkleaks mobsf adb fastboot"
+"AD/NETWORK|nxc smbmap enum4linux-ng kerbrute bloodhound-python certipy bettercap responder"
+"CLOUD|trivy kube-bench kube-hunter scout prowler"
+"NETWORK|wireshark tshark tcpdump nmap masscan zmap netsniff-ng dsniff aircrack-ng wifite hcxdumptool hcxpcapngtool socat ncat proxychains4 sshuttle chisel nikto dirb whatweb testssl.sh sslscan hydra medusa ncrack onesixtyone ike-scan"
+"MALWARE|yara yargen capa floss peframe pebear memprocfs vol clamscan"
+"CTF|sage RsaCtfTool hashcat john fcrackzip steghide stegseek zsteg outguess autopsy fls foremost scalpel photorec theHarvester sherlock recon-ng subfinder amass gobuster waybackurls"
+"DEV|python3 python3.12 go node npm cargo gcc x86_64-w64-mingw32-gcc clang cmake ninja meson nvim code wine"
+)
+
+case "${1:-help}" in
+doctor)
+    exec /usr/local/lib/netmask/verify-tools.sh
+    ;;
+help|--help|-h|"")
+    echo "netmask ❯ RE toolchain navigator — 'netmask-tools doctor' verifies everything"
+    echo
+    for entry in "${CATS[@]}"; do
+        cat="${entry%%|*}"; tools="${entry#*|}"
+        printf '\033[0;36m%-9s\033[0m ' "$cat"
+        first=1
+        for t in $tools; do
+            if command -v "$t" >/dev/null 2>&1; then
+                printf '%s\033[0;32m%s\033[0m' "$([ $first -eq 1 ] || echo ' ')" "$t"
+            else
+                printf '%s\033[0;90m%s\033[0m' "$([ $first -eq 1 ] || echo ' ')" "$t"
+            fi
+            first=0
+        done
+        echo
+    done
+    echo
+    echo "  gdb starts with GEF  ·  'pwndbg' switches to pwndbg  ·  gray = not installed"
+    ;;
+*)
+    echo "usage: netmask-tools [help|doctor]" >&2
+    exit 2
+    ;;
+esac

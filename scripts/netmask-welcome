@@ -1,0 +1,35 @@
+#!/bin/bash
+# netmask-welcome — first terminal of the session (i3 opens it on ws1)
+set -u
+
+G=$'\033[0;32m'; C=$'\033[0;36m'; R=$'\033[0;31m'; D=$'\033[0;90m'; RST=$'\033[0m'
+
+cat <<'BANNER'
+        ▄▄████████████████████▄▄
+      ▄████████████████████████████▄
+     ████▀▀                    ▀▀████
+    ████    ▄▄▄▄▄      ▄▄▄▄▄       ████
+    ███    ██████      ██████       ███
+    ███    ██████      ██████       ███
+    ████    ▀▀▀▀▀      ▀▀▀▀▀       ████
+     ████▄▄    NETMASK OS       ▄▄████
+      ▀████████████████████████████▀
+        ▀▀████████████████████▀▀
+BANNER
+
+printf '\n%s  full-spectrum RE // ethical hacking environment%s\n\n' "$C" "$RST"
+echo "  $(grep PRETTY /etc/os-release | cut -d'"' -f2) · $(uname -r)"
+echo "  ${G}tools${RST}    $(netmask-tools 2>/dev/null | wc -l) categories — run ${G}netmask-tools${RST}"
+echo "  ${G}learn${RST}    tutorials & cheat sheets — run ${G}netmask-learn${RST}"
+echo "  ${G}crack${RST}    the crackme pack (easy→expert) — run ${G}netmask-crackmes${RST}"
+echo "  ${G}doctor${RST}   verify every tool: ${G}netmask-tools doctor${RST}"
+echo
+echo "  ${D}keys: Win key / Super+D start menu · Super+R run · Super+E files${RST}"
+echo "  ${D}      Super+Enter terminal · Super+F1 tools · Super+F2 tutorials${RST}"
+echo "  ${D}      Super+F3 crackmes · Super+G ghidra · Super+Shift+W burp${RST}"
+echo "  ${D}discord.gg/netmask${RST}"
+echo
+echo -n "  press ENTER for a shell... "
+read -r
+clear
+exec zsh

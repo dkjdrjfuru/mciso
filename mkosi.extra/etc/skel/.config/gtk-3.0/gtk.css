@@ -1,0 +1,30 @@
+/* ~/.config/gtk-3.0/gtk.css — Netmask OS Windows-style taskbar
+   bg #0D0D1A · fg #E0E0E0 · accent #00D9FF (focused/active) */
+
+/* bottom taskbar (xfce4-panel) */
+XfcePanelWindow {
+    background-color: rgb(13, 13, 26);
+    color: #E0E0E0;
+}
+
+/* flat taskbar buttons — no raised boxes, like Windows 10/11 */
+XfcePanelWindow button {
+    background-color: transparent;
+    color: #E0E0E0;
+    border: none;
+    padding: 2px 6px;
+}
+
+XfcePanelWindow button:hover {
+    color: #00D9FF;
+}
+
+XfcePanelWindow button:checked,
+XfcePanelWindow button:active {
+    color: #00D9FF;
+}
+
+/* whisker start menu panel button */
+XfcePanelWindow #whisker-menu-button {
+    padding: 2px 8px;
+}

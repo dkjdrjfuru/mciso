@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Crackmes
+GenericName=Crackme challenge pack
+Comment=11 original challenges (easy -> expert) with solutions
+Exec=kitty -e netmask-crackmes
+Icon=security-high
+Terminal=false
+Categories=Development;Security;

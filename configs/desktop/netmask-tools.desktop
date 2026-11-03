@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Netmask Toolkit
+GenericName=RE tool navigator
+Comment=Categorized cheat-sheet of every tool on this OS
+Exec=kitty -e netmask-tools
+Icon=/usr/share/backgrounds/netmask/netmask_logo_48.png
+Terminal=false
+Categories=Development;Utility;

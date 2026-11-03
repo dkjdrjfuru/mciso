@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Tutorials
+GenericName=RE & ethical-hacking lessons
+Comment=33 lessons: reversing, exploiting, malware, crypto, forensics
+Exec=pcmanfm /home/netmask/tutorials
+Icon=folder
+Terminal=false
+Categories=Education;Documentation;

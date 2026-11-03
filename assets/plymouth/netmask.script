@@ -1,0 +1,180 @@
+# netmask.script — Netmask OS boot splash (plymouth "script" plugin)
+#
+# Matrix rain (pre-rendered fading glyph strips) + netmask emblem fade-in +
+# progress bar + question/password dialogs (LUKS2 persistence prompt).
+#
+# Engine notes (kept to documented script-plugin patterns):
+#   * top-level code runs once; refresh runs every animation frame
+#   * state lives in object MEMBERS (mutated, never rebound in functions)
+#   * arrays are created by index assignment; string+int concat is native
+#   * PRNG = LCG, no Math dependency
+
+# --- palette (mandated) ------------------------------------------------------
+# bg #0D0D1A, cyan #00D9FF, green #27AE60, fg #E0E0E0
+Window.SetBackgroundTopColor(0.051, 0.051, 0.102);
+Window.SetBackgroundBottomColor(0.016, 0.016, 0.043);
+
+W = Window.GetWidth();
+H = Window.GetHeight();
+
+# --- PRNG --------------------------------------------------------------------
+rng.seed = 97531;
+fun rnd(n) {
+    rng.seed = (rng.seed * 16807) % 2147483647;
+    return rng.seed % n;
+}
+
+fun rain_image(i) {
+    if (i % 4 == 0) { return "rain-0.png"; }
+    if (i % 4 == 1) { return "rain-1.png"; }
+    if (i % 4 == 2) { return "rain-2.png"; }
+    return "rain-3.png";
+}
+
+# --- matrix rain -------------------------------------------------------------
+rain_count = 48;
+for (i = 0; i < rain_count; i++) {
+    rain[i].img = Image(rain_image(i));
+    rain[i].sprite = Sprite();
+    rain[i].sprite.SetImage(rain[i].img);
+    rain[i].x = i * (W / rain_count);
+    rain[i].y = 0 - (rnd(H) * 2);
+    rain[i].speed = 2 + rnd(5);
+    rain[i].op = 0.30 + (rnd(10) / 28.0);
+    rain[i].sprite.SetX(rain[i].x);
+    rain[i].sprite.SetY(rain[i].y);
+    rain[i].sprite.SetZ(-10);
+    rain[i].sprite.SetOpacity(rain[i].op);
+}
+
+# --- emblem (fade-in) --------------------------------------------------------
+logo.img = Image("logo.png");
+logo.sprite = Sprite();
+logo.sprite.SetImage(logo.img);
+logo.sprite.SetX(W / 2 - logo.img.GetWidth() / 2);
+logo.sprite.SetY(H / 2 - logo.img.GetHeight() / 2 - 60);
+logo.sprite.SetZ(5);
+logo.op = 0.0;
+logo.sprite.SetOpacity(logo.op);
+
+# --- tagline -----------------------------------------------------------------
+tag.img = Image.Text("F U L L   S P E C T R U M   R E", 0.153, 0.682, 0.376);
+tag.sprite = Sprite();
+tag.sprite.SetImage(tag.img);
+tag.sprite.SetX(W / 2 - tag.img.GetWidth() / 2);
+tag.sprite.SetY(H / 2 + 130);
+tag.sprite.SetZ(5);
+tag.op = 0.0;
+tag.sprite.SetOpacity(tag.op);
+
+# --- progress bar ------------------------------------------------------------
+for (k = 0; k <= 10; k++) {
+    bar.img[k] = Image("fill-" + k + ".png");
+}
+bar.bgimg = Image("bar-bg.png");
+bar.bg = Sprite();
+bar.bg.SetImage(bar.bgimg);
+bar.bg.SetX(W / 2 - bar.bgimg.GetWidth() / 2);
+bar.bg.SetY(H - 110);
+bar.bg.SetZ(6);
+bar.bg.SetOpacity(0.0);
+bar.fill = Sprite();
+bar.fill.SetImage(bar.img[0]);
+bar.fill.SetX(W / 2 - bar.bgimg.GetWidth() / 2 + 2);
+bar.fill.SetY(H - 108);
+bar.fill.SetZ(7);
+bar.fill.SetOpacity(0.0);
+bar.last = -1;
+
+# --- dialog layer (question / password, e.g. LUKS2 persistence) --------------
+dlg.img = Image("overlay.png");
+dlg.bg = Sprite();
+dlg.bg.SetImage(dlg.img);
+dlg.bg.SetZ(20);
+dlg.bg.SetOpacity(0);
+
+dlg.prompt = Sprite();
+dlg.prompt.SetZ(21);
+dlg.prompt.SetOpacity(0);
+
+dlg.entry = Sprite();
+dlg.entry.SetZ(22);
+dlg.entry.SetOpacity(0);
+
+fun show_dialog(prompt, input_text) {
+    txt = Image.Text(prompt, 0.878, 0.878, 0.878);
+    dlg.prompt.SetImage(txt);
+    dlg.prompt.SetX(W / 2 - txt.GetWidth() / 2);
+    dlg.prompt.SetY(H / 2 - 70);
+    dlg.prompt.SetOpacity(1);
+
+    inp = Image.Text(input_text + "_", 0, 0.851, 1);
+    dlg.entry.SetImage(inp);
+    dlg.entry.SetX(W / 2 - inp.GetWidth() / 2);
+    dlg.entry.SetY(H / 2 - 10);
+    dlg.entry.SetOpacity(1);
+
+    dlg.bg.SetOpacity(1);
+}
+
+fun display_password(prompt, bullets) {
+    show_dialog(prompt, bullets);
+}
+
+fun display_question(prompt, entry) {
+    show_dialog(prompt, entry);
+}
+
+fun display_normal() {
+    dlg.bg.SetOpacity(0);
+    dlg.prompt.SetOpacity(0);
+    dlg.entry.SetOpacity(0);
+}
+
+Plymouth.SetDisplayPasswordFunction(display_password);
+Plymouth.SetDisplayQuestionFunction(display_question);
+Plymouth.SetDisplayNormalFunction(display_normal);
+
+# --- boot progress -----------------------------------------------------------
+fun boot_progress(duration, progress) {
+    idx = progress * 10;
+    idx = idx - (idx % 1);
+    if (idx < 0) { idx = 0; }
+    if (idx > 10) { idx = 10; }
+    if (idx != bar.last) {
+        bar.fill.SetImage(bar.img[idx]);
+        bar.last = idx;
+    }
+    bar.bg.SetOpacity(1);
+    bar.fill.SetOpacity(1);
+}
+Plymouth.SetBootProgressFunction(boot_progress);
+
+# --- refresh -----------------------------------------------------------------
+fun refresh() {
+    # emblem + tagline fade-in
+    if (logo.op < 1) {
+        logo.op = logo.op + 0.03;
+        if (logo.op > 1) { logo.op = 1; }
+        logo.sprite.SetOpacity(logo.op);
+    }
+    if (logo.op >= 0.5) {
+        if (tag.op < 1) {
+            tag.op = tag.op + 0.04;
+            if (tag.op > 1) { tag.op = 1; }
+            tag.sprite.SetOpacity(tag.op);
+        }
+    }
+    # rain columns
+    for (i = 0; i < rain_count; i++) {
+        rain[i].y = rain[i].y + rain[i].speed;
+        if (rain[i].y > H) {
+            rain[i].y = 0 - rain[i].img.GetHeight() - rnd(400);
+            rain[i].speed = 2 + rnd(5);
+            rain[i].op = 0.30 + (rnd(10) / 28.0);
+            rain[i].sprite.SetOpacity(rain[i].op);
+        }
+        rain[i].sprite.SetY(rain[i].y);
+    }
+}
+Plymouth.SetRefreshFunction(refresh);

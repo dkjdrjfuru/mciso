@@ -1,0 +1,59 @@
+#!/bin/bash
+# netmask-crackmes — the Netmask OS crackme challenge pack
+#   netmask-crackmes            list challenges (no spoilers)
+#   netmask-crackmes run <id>   launch an ELF challenge (e.g. run crackme01)
+#   netmask-crackmes wine <id>  launch the Windows PE build (needs wine)
+set -u
+
+ROOT=/usr/share/netmask/crackmes
+[ -d "$ROOT" ] || { echo "crackme pack missing ($ROOT)"; exit 1; }
+
+TIERS=(easy medium hard expert)
+POINTS=(100 250 500 1000)
+
+echo
+echo -e "\033[0;32m NETMASK OS // CRACKME PACK\033[0m  \033[0;90m(try them in Ghidra/Cutter — patch-free keygens preferred)\033[0m"
+echo
+n=1
+for t in "${TIERS[@]}"; do
+    dir="$ROOT/$t"
+    [ -d "$dir" ] || continue
+    bins=("$dir"/binary/crackme*)
+    [ -e "${bins[0]}" ] || continue
+    for b in "${bins[@]}"; do
+        [ -x "$b" ] || continue
+        case "$b" in *.exe) continue ;; esac
+        id="$(basename "$b")"
+        printf '  \033[1m%02d\033[0m \033[0;36m%-7s\033[0m %-13s \033[0;33m%s pts\033[0m   %s\n' \
+            "$n" "$t" "$id" "${POINTS[$((n % 4))]}" \
+            "$(grep -m1 -oP '(?<=^> ).*' "$dir/SOLUTION.md" 2>/dev/null | cut -c1-40)"
+        n=$((n + 1))
+    done
+done
+echo
+echo "  run:      netmask-crackmes run crackme01"
+echo "  windows:  netmask-crackmes wine crackme01    (or: wine /opt/wine-crackmes/crackme01.exe)"
+echo "  writeups: $ROOT/<tier>/SOLUTION*.md  — read them AFTER your attempt!"
+echo
+
+case "${1:-list}" in
+run)
+    id="${2:?usage: netmask-crackmes run <crackmeNN>}"
+    for t in "${TIERS[@]}"; do
+        [ -x "$ROOT/$t/binary/$id" ] && exec "$ROOT/$t/binary/$id"
+    done
+    echo "challenge not found: $id"; exit 1
+    ;;
+wine)
+    id="${2:?usage: netmask-crackmes wine <crackmeNN>}"
+    command -v wine >/dev/null 2>&1 || { echo "wine not installed (optional module)"; exit 1; }
+    for t in "${TIERS[@]}"; do
+        [ -f "$ROOT/$t/binary/$id.exe" ] && exec wine "$ROOT/$t/binary/$id.exe"
+    done
+    echo "challenge not found: $id.exe"; exit 1
+    ;;
+list) ;;
+*)
+    echo "usage: netmask-crackmes [list|run|wine] [id]" >&2
+    ;;
+esac

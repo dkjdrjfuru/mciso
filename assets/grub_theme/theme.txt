@@ -1,0 +1,17 @@
+# Netmask OS GRUB theme (menu is hidden by default; hold ESC to surface it)
+desktop-image: "background.png"
+title-color: "#00D9FF"
+title-text: "NETMASK OS"
+
++ boot_menu {
+    left = 10%
+    top = 30%
+    width = 80%
+    height = 42%
+    item_color = "#E0E0E0"
+    selected_item_color = "#00D9FF"
+    item_height = 36
+    item_padding = 8
+    item_spacing = 6
+    menu_pixmap_style = ""
+}

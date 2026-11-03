@@ -1,0 +1,130 @@
+#!/bin/bash
+# mkosi.postoutput — runs on the BUILD HOST (in mkosi's sandbox) after the
+# rootfs is staged. Assembles the bootable hybrid ISO:
+#
+#   rootfs -> filesystem.squashfs + kernel + initrd + grub
+#          -> grub-mkrescue (BIOS El Torito + UEFI El Torito)
+#
+# Boot UX (mandated "auto-load like Windows"):
+#   * GRUB timeout=0, menu hidden  -> power on = instant boot
+#   * themed GRUB (matrix background; hold ESC to surface the menu)
+#   * plymouth matrix-rain splash -> getty autologin -> i3 desktop
+#
+# The finished ISO is written into $OUTPUTDIR; mkosi then moves it into
+# the configured output directory (output/). -iso-level 3 keeps ISOs > 4 GB
+# valid (the full toolchain squashfs can exceed that).
+set -euo pipefail
+
+ISO_NAME="netmask-os-hacker.iso"
+ROOT_NAME="netmask-os-rootfs"
+
+OUTPUTDIR="${OUTPUTDIR:?mkosi did not provide \$OUTPUTDIR}"
+ROOT="$OUTPUTDIR/$ROOT_NAME"
+EPOCH="${SOURCE_DATE_EPOCH:-$(date -u +%s)}"
+
+need() {
+    command -v "$1" >/dev/null 2>&1 || {
+        echo "ERROR: '$1' not found on the build host." >&2
+        echo "Install the ISO tools:  sudo apt install -y squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools grub-common" >&2
+        exit 1
+    }
+}
+need mksquashfs
+need grub-mkrescue
+
+[ -d "$ROOT" ] || { echo "ERROR: rootfs not found at $ROOT" >&2; exit 1; }
+
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/netmask-iso.XXXXXXXX")"
+trap 'rm -rf "$TMP"' EXIT
+
+echo ">>> [iso] packing squashfs (zstd) from $ROOT"
+mkdir -p "$TMP/iso/live" "$TMP/iso/boot/grub"
+# exclude /boot (kernel+initrd are shipped on the ISO itself) and pseudo FS contents
+mksquashfs "$ROOT" "$TMP/iso/live/filesystem.squashfs" \
+    -noappend -no-recovery -all-root \
+    -comp zstd -Xcompression-level 19 \
+    -wildcards -e 'boot/*' 'dev/*' 'proc/*' 'run/*' 'sys/*' 'tmp/*' \
+    >/dev/null
+
+echo ">>> [iso] staging kernel + initrd"
+KERNEL="$(ls -1v "$ROOT"/boot/vmlinuz-* 2>/dev/null | tail -n1 || true)"
+if [ -z "$KERNEL" ] || [ ! -f "$KERNEL" ]; then
+    KERNEL="$(find "$ROOT/boot" "$OUTPUTDIR" -name "vmlinuz*" | head -n1)"
+fi
+
+INITRD="$(ls -1v "$ROOT"/boot/initrd* 2>/dev/null | tail -n1 || true)"
+if [ -z "$INITRD" ] || [ ! -f "$INITRD" ]; then
+    INITRD="$(find "$ROOT/boot" "$OUTPUTDIR" -name "*initrd*" | head -n1)"
+fi
+
+echo "Staging Kernel: $KERNEL"
+echo "Staging Initrd: $INITRD"
+cp "$KERNEL" "$TMP/iso/boot/vmlinuz"
+cp "$INITRD" "$TMP/iso/boot/initrd.img"
+
+# ---------------------------------------------------------------- grub theme
+echo ">>> [iso] installing GRUB theme"
+THEME_DIR="$TMP/iso/boot/grub/themes/netmask"
+mkdir -p "$THEME_DIR"
+if [ -d "$ROOT/usr/share/netmask/grub-theme" ]; then
+    cp -f "$ROOT/usr/share/netmask/grub-theme/"* "$THEME_DIR/" 2>/dev/null || true
+fi
+# compile a grub font from the vendored FiraCode (theme degrades gracefully)
+if command -v grub-mkfont >/dev/null 2>&1 \
+   && [ -f "$ROOT/usr/share/fonts/truetype/netmask/FiraCodeNerdFont-Regular.ttf" ]; then
+    grub-mkfont -o "$THEME_DIR/firacode-nerd.pf2" \
+        "$ROOT/usr/share/fonts/truetype/netmask/FiraCodeNerdFont-Regular.ttf" \
+        >/dev/null 2>&1 || true
+fi
+
+echo ">>> [iso] writing grub config (timeout=0, hidden menu — auto-load like Windows)"
+cat > "$TMP/iso/boot/grub/grub.cfg" <<'GRUB'
+# Netmask OS — zero-interaction boot (hold ESC during boot for the menu)
+set default=0
+set timeout=0
+set timeout_style=hidden
+
+if loadfont /boot/grub/themes/netmask/firacode-nerd.pf2; then
+    set gfxmode=1920x1080
+    insmod all_video
+    insmod gfxterm
+    insmod png
+    terminal_output gfxterm
+    set theme=($root)/boot/grub/themes/netmask/theme.txt
+    export theme
+fi
+
+menuentry "Netmask OS" {
+    linux /boot/vmlinuz boot=live persistent quiet splash loglevel=3 video=1920x1080 netmask.persistence=ask netmask.autologin=1 netmask.noroot=1 apparmor=1 security=apparmor
+    initrd /boot/initrd.img
+}
+
+menuentry "Netmask OS (no persistence)" {
+    linux /boot/vmlinuz boot=live quiet splash loglevel=3 video=1920x1080 netmask.autologin=1 netmask.noroot=1 apparmor=1 security=apparmor
+    initrd /boot/initrd.img
+}
+
+menuentry "Netmask OS (verbose)" {
+    linux /boot/vmlinuz boot=live persistent netmask.persistence=ask apparmor=1 security=apparmor
+    initrd /boot/initrd.img
+}
+
+menuentry "Netmask OS (serial console)" {
+    linux /boot/vmlinuz boot=live console=ttyS0,115200n8 apparmor=1 security=apparmor
+    initrd /boot/initrd.img
+}
+GRUB
+
+echo ">>> [iso] building hybrid ISO with grub-mkrescue"
+export SOURCE_DATE_EPOCH="$EPOCH"
+OUT="$OUTPUTDIR/$ISO_NAME"
+rm -f "$OUT"
+if ! grub-mkrescue -o "$OUT" "$TMP/iso" -- -volid NETMASK_OS -iso-level 3 >/dev/null 2>&1; then
+    rm -f "$OUT"
+    grub-mkrescue -o "$OUT" "$TMP/iso" -- -volid NETMASK_OS -iso-level 3
+fi
+
+# hand the ISO back to the invoking user
+chown "${MKOSI_UID:-$(id -u)}:${MKOSI_GID:-$(id -g)}" "$OUT" 2>/dev/null || true
+
+echo ">>> [iso] done: $ISO_NAME ($(du -h "$OUT" | cut -f1)) — mkosi will move it into output/"

@@ -1,0 +1,36 @@
+#!/bin/bash
+# netmask-learn — browse the Netmask OS tutorial pack
+#   netmask-learn            list every tutorial
+#   netmask-learn <n|name>   open one in the pager
+set -u
+
+ROOT=/usr/share/netmask/tutorials
+[ -d "$ROOT" ] || { echo "tutorial pack missing ($ROOT)"; exit 1; }
+
+mapfile -t FILES < <(find "$ROOT" -name "*.md" | sort)
+
+if [ $# -ge 1 ]; then
+    pick="$1"
+    for f in "${FILES[@]}"; do
+        base="$(basename "$f")"
+        if [ "$base" = "$pick" ] || [ "$base" = "${pick}.md" ] || [[ "$base" == *"$pick"* ]]; then
+            exec less "$f"
+        fi
+    done
+    echo "no tutorial matches '$pick'"; exit 1
+fi
+
+echo
+echo -e "\033[0;32m NETMASK OS // TUTORIAL PACK\033[0m"
+echo -e "\033[0;90m $(printf '%s' "${#FILES[@]}") lessons · Super+F2 opens this\033[0m"
+echo
+i=1
+for f in "${FILES[@]}"; do
+    cat="$(basename "$(dirname "$f")")"
+    printf '  \033[0;36m%-11s\033[0m \033[1m%02d\033[0m %-32s\n' "$cat" "$i" "$(basename "$f" .md)"
+    i=$((i + 1))
+done
+echo
+echo "  open one:  netmask-learn 05-radare2-basics   (or just the number prefix)"
+echo "  raw files: $ROOT"
+echo

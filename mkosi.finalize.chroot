@@ -1,0 +1,71 @@
+#!/bin/bash
+# mkosi.finalize.chroot — runs INSIDE the image as root, after everything
+# else is in place (packages, extra trees, preset-all).
+set -euo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+
+# fix skel permissions BEFORE useradd -m copies them into the home dir
+chmod 755 /etc/skel/.config/i3/scripts/start-menu.sh 2>/dev/null || true
+chmod 440 /etc/sudoers.d/netmask
+
+echo ">>> [finalize] creating the netmask user"
+if ! id netmask >/dev/null 2>&1; then
+    useradd --create-home --uid 1000 --user-group \
+        --groups video,audio,input,netdev \
+        --shell /usr/bin/zsh \
+        --comment "Netmask OS" netmask
+fi
+passwd -d netmask                      # no password (auto-login anyway)
+passwd -l root >/dev/null 2>&1 || true # root stays locked
+
+# content pack: tutorials + crackmes visible in the home directory
+for c in tutorials crackmes; do
+    if [ -d "/usr/share/netmask/$c" ] && [ ! -e "/home/netmask/$c" ]; then
+        ln -s "/usr/share/netmask/$c" "/home/netmask/$c"
+    fi
+done
+chown -h 1000:1000 /home/netmask/tutorials /home/netmask/crackmes 2>/dev/null || true
+
+# allow passwordless serial-console login (handy for headless debugging)
+if [ -f /etc/securetty ] && ! grep -q '^ttyS0$' /etc/securetty; then
+    echo ttyS0 >> /etc/securetty
+fi
+
+echo ">>> [finalize] live-system hygiene"
+rm -f /var/lib/dbus/machine-id
+: > /etc/machine-id # regenerated per boot -> correct for live ISOs
+
+# drop the installer scratch tree copied in via mkosi.extra
+rm -rf /opt/netmask-installer
+
+# NetworkManager owns /etc/resolv.conf at runtime
+rm -f /etc/resolv.conf
+ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf
+
+echo ">>> [finalize] enabling services"
+systemctl enable NetworkManager.service
+systemctl enable getty@tty1.service
+systemctl enable frida-server.service 2>/dev/null || true
+systemctl enable apparmor.service 2>/dev/null || true
+# VirtualBox guest service (shared clipboard / drag&drop / time sync)
+systemctl enable vboxservice.service 2>/dev/null || true
+systemctl disable apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+
+echo ">>> [finalize] boot splash: activating the Netmask matrix-rain theme"
+if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+    plymouth-set-default-theme netmask 2>/dev/null \
+        || echo ">>> [finalize] WARN: plymouth theme 'netmask' not registered"
+    plymouth-set-default-theme 2>/dev/null || true
+fi
+
+echo ">>> [finalize] rebuilding initramfs with live-boot + plymouth hooks"
+KERNEL_VER="$(ls -1v /lib/modules | tail -n1)"
+update-initramfs -c -k "$KERNEL_VER" || update-initramfs -u -k all
+ls -lh /boot/
+
+echo ">>> [finalize] font cache + permissions"
+fc-cache -f >/dev/null 2>&1 || true
+chmod 755 /home/netmask/.config/i3/scripts/start-menu.sh 2>/dev/null || true
+
+echo ">>> [finalize] done"

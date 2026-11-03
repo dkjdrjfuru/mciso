@@ -1,0 +1,25 @@
+image: debian:bookworm
+
+stages:
+  - build
+
+build_iso:
+  stage: build
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq git pipx squashfs-tools xorriso grub-pc-bin
+      grub-efi-amd64-bin mtools debian-archive-keyring dosfstools
+      cpio zstd xz-utils binutils
+    - pipx install git+https://github.com/systemd/mkosi.git
+    - export PATH="$HOME/.local/bin:$PATH"
+  script:
+    - export PATH="$HOME/.local/bin:$PATH"
+    - mkosi --version
+    - ./build.sh
+    - ls -lh output/
+  artifacts:
+    name: "netmask-os-hacker-iso"
+    paths:
+      - output/*.iso
+      - output/*.sha256
+    expire_in: 7 days

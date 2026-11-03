@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Files
+GenericName=File manager
+Comment=Browse the filesystem (PCManFM)
+Exec=pcmanfm
+Icon=system-file-manager
+Terminal=false
+Categories=System;FileManager;

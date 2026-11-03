@@ -1,0 +1,9 @@
+# ~/.config/xfce4/panel/whiskermenu-1.rc — Netmask OS start menu
+# Windows-style start menu (whisker menu); dark hacker look comes from
+# the GTK theme (Arc-Dark) + ~/.config/gtk-3.0/gtk.css.
+menu-width=620
+menu-height=580
+icon-size=2
+button-icon-name=netmask-start
+show-tooltips=true
+show-generic-names=false
